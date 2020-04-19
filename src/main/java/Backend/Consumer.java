@@ -9,6 +9,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
 
 import javax.swing.*;
 import java.awt.*;
+import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Properties;
 
@@ -17,24 +18,20 @@ public class Consumer {
     private JSpinner numberOfMessages;
     private JButton sendButton;
 
+    private final static ClickHouseDao dao = new ClickHouseDao();
+
     public static void main(String[] args) {
         KafkaConsumer<String, String> consumer = createConsumer();
         consumer.subscribe(Collections.singletonList("test"));
         try {
             while (true) {
                 ConsumerRecords<String, String> records = consumer.poll(100);
-                for (ConsumerRecord<String, String> record : records)
-                {
-                    int updatedCount = 1;
-//                    if (custCountryMap.countainsKey(record.value())) {
-//                        updatedCount = custCountryMap.get(record.value()) + 1;
-//                    }
-//                    custCountryMap.put(record.value(), updatedCount)
-//
-//                    JSONObject json = new JSONObject(custCountryMap);
-//                    System.out.println(json.toString(4)) 4
+                for (ConsumerRecord<String, String> record : records) {
+                    dao.insertRecord(record.value());
                 }
             }
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
         } finally {
             consumer.close();
         }
@@ -43,7 +40,7 @@ public class Consumer {
     public static KafkaConsumer<String, String> createConsumer() {
         Properties props = new Properties();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, "AnkushevAD");
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "group");
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         return new KafkaConsumer<>(props);

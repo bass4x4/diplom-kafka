@@ -12,12 +12,12 @@ import java.awt.*;
 import java.util.Properties;
 import java.util.Random;
 
-public class MainMenu {
+public class ProducerMenu {
     private JPanel mainMenuPanel;
     private JSpinner numberOfMessages;
     private JButton sendButton;
 
-    public MainMenu() {
+    public ProducerMenu() {
         numberOfMessages.setModel(new SpinnerNumberModel(0, 0, 1000000, 1));
         sendButton.addActionListener(actionEvent -> sendMessages(((int) numberOfMessages.getValue())));
     }
