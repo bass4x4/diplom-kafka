@@ -1,56 +1,52 @@
-package UI;
+package Backend;
 
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.KafkaException;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.Collections;
 import java.util.Properties;
-import java.util.Random;
 
-public class MainMenu {
+public class Consumer {
     private JPanel mainMenuPanel;
     private JSpinner numberOfMessages;
     private JButton sendButton;
 
-    public MainMenu() {
-        numberOfMessages.setModel(new SpinnerNumberModel(0, 0, 1000000, 1));
-        sendButton.addActionListener(actionEvent -> sendMessages(((int) numberOfMessages.getValue())));
-    }
-
-    private void sendMessages(int numberOfMessages) {
+    public static void main(String[] args) {
+        KafkaConsumer<String, String> consumer = createConsumer();
+        consumer.subscribe(Collections.singletonList("test"));
         try {
-            Producer<String, String> producer = createProducer();
-            Random random = new Random();
-            long start = System.currentTimeMillis();
-            for (int i = 0; i < numberOfMessages; i++) {
-                try {
-                    ProducerRecord<String, String> record = new ProducerRecord("test", String.valueOf(random.nextInt(1000)), String.valueOf(random.nextInt(10000)));
-                    producer.send(record);
-                } catch (Exception e) {
-                    System.out.println(e);
-                    JOptionPane.showMessageDialog(null, String.format("Couldn't send the message #%d. Didn't try to send %d messages.", i, numberOfMessages - i));
-                    return;
+            while (true) {
+                ConsumerRecords<String, String> records = consumer.poll(100);
+                for (ConsumerRecord<String, String> record : records)
+                {
+                    int updatedCount = 1;
+//                    if (custCountryMap.countainsKey(record.value())) {
+//                        updatedCount = custCountryMap.get(record.value()) + 1;
+//                    }
+//                    custCountryMap.put(record.value(), updatedCount)
+//
+//                    JSONObject json = new JSONObject(custCountryMap);
+//                    System.out.println(json.toString(4)) 4
                 }
             }
-            JOptionPane.showMessageDialog(null, String.format("Took %f second to send %d messages", (System.currentTimeMillis() - start) / 1000F, numberOfMessages));
-        } catch (KafkaException e) {
-            JOptionPane.showMessageDialog(null, "Couldn't initialize KafkaProducer.");
+        } finally {
+            consumer.close();
         }
     }
 
-    public static Producer<String, String> createProducer() {
+    public static KafkaConsumer<String, String> createConsumer() {
         Properties props = new Properties();
-        props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, "1000");
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        props.put(ProducerConfig.CLIENT_ID_CONFIG, "AnkushevAD");
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
-        return new KafkaProducer<>(props);
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "AnkushevAD");
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        return new KafkaConsumer<>(props);
     }
 
     public JPanel getMainMenuPanel() {
