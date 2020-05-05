@@ -30,8 +30,7 @@ public class ClickHouseDao {
         try (PreparedStatement statement = connection.prepareStatement(INSERT_QUERY)) {
             statement.setString(1, getCurrentDateTime());
             statement.setString(2, message);
-            try (ResultSet rs = statement.executeQuery()) {
-            }
+            statement.executeQuery();
         }
     }
 
