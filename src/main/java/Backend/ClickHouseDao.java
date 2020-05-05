@@ -14,7 +14,7 @@ public class ClickHouseDao {
 
     //language=ClickHouse
     private final static String INSERT_QUERY =
-            "insert into test (dateTime, message) values (?, ?)";
+            "INSERT INTO test (dateTime, message) VALUES (?, ?)";
 
     public ClickHouseDao() {
         try {

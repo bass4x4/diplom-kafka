@@ -12,8 +12,8 @@ public class Producer {
         mainMenu.setContentPane(new ProducerMenu().getMainMenuPanel());
         mainMenu.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         mainMenu.pack();
-        mainMenu.setSize(500, 200);
-        mainMenu.setMinimumSize(new Dimension(500, 200));
+        mainMenu.setSize(500, 500);
+//        mainMenu.setMinimumSize(new Dimension(500, 500));
         mainMenu.setVisible(true);
     }
 }
