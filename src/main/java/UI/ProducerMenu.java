@@ -15,7 +15,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class ProducerMenu {
-    private final int BATCH_SIZE_DEFAULT = 16384;
     private final HashMap<String, String> acks;
     private final Random r = new Random();
 
@@ -80,7 +79,7 @@ public class ProducerMenu {
         int lingerMs = (int) lingerMsSpinner.getValue();
         props.put(ProducerConfig.LINGER_MS_CONFIG, lingerMs);
         int batchSize = (int) batchSizeSpinner.getValue();
-        props.put(ProducerConfig.BATCH_SIZE_CONFIG, BATCH_SIZE_DEFAULT * batchSize);
+        props.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384 * batchSize);
         String compressionType = String.valueOf(compressionTypeComboBox.getSelectedItem());
         props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, compressionType);
         String ack = String.valueOf(ackComboBox.getSelectedItem());
@@ -91,7 +90,6 @@ public class ProducerMenu {
             } else {
                 JOptionPane.showMessageDialog(null, "Please make sure you always use idempotent producer with ack=ALL.\nParameter ack was set to ALL!");
             }
-
         }
         return new KafkaProducer<>(props);
     }

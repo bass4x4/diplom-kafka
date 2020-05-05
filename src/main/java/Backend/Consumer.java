@@ -25,8 +25,12 @@ public class Consumer {
         try {
             while (true) {
                 ConsumerRecords<String, String> records = consumer.poll(100);
-                for (ConsumerRecord<String, String> record : records) {
-                    dao.insertRecord(record.value());
+                if (!records.isEmpty()) {
+                    long start = System.currentTimeMillis();
+                    for (ConsumerRecord<String, String> record : records) {
+                        dao.insertRecord(record.value());
+                    }
+                    System.out.println(String.format("Took %f to process %d records.", (System.currentTimeMillis() - start) / 1000F, records.count()));
                 }
             }
         } catch (SQLException throwables) {
@@ -42,6 +46,8 @@ public class Consumer {
         props.put(ConsumerConfig.GROUP_ID_CONFIG, "group");
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        props.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, 1048576);
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
         return new KafkaConsumer<>(props);
     }
 
