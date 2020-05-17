@@ -54,7 +54,9 @@ public class ProducerMenu {
 
     private void sendMessages(int numberOfMessages) {
         try {
-            Producer<String, String> producer = createProducer();
+            Result result = new Result();
+            result.setNumberOfRecords(numberOfMessages);
+            Producer<String, String> producer = createProducer(result);
             List<String> strings = generateTestData(numberOfMessages);
             long start = System.currentTimeMillis();
             for (int i = 0; i < strings.size(); i++) {
@@ -67,14 +69,18 @@ public class ProducerMenu {
                     return;
                 }
             }
-            JOptionPane.showMessageDialog(null, String.format("Took %f second to send %d messages", (System.currentTimeMillis() - start) / 1000F, numberOfMessages));
+            float time = (System.currentTimeMillis() - start) / 1000F;
+            JOptionPane.showMessageDialog(null, String.format("Took %f second to send %d messages", time, numberOfMessages));
+            result.setDuration(time);
+            ProducerRecord<String, String> record = new ProducerRecord("test_results", String.valueOf(r.nextInt(1000)), ResultSerializer.serialize(result));
+            resultsProducer.send(record);
         } catch (KafkaException e) {
             System.out.println(e);
             JOptionPane.showMessageDialog(null, "Couldn't initialize KafkaProducer.");
         }
     }
 
-    public Producer<String, String> createProducer() {
+    public Producer<String, String> createProducer(Result result) {
         Properties props = new Properties();
         props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, "1000");
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
@@ -98,9 +104,11 @@ public class ProducerMenu {
             }
         }
 
-        Result result = new Result(lingerMs, batchSize, compressionType, ack, idempotent);
-        ProducerRecord<String, String> record = new ProducerRecord("test_results", String.valueOf(r.nextInt(1000)), ResultSerializer.serialize(result));
-        resultsProducer.send(record);
+        result.setLingerMs(lingerMs);
+        result.setBatchSize(batchSize);
+        result.setCompressionType(compressionType);
+        result.setAck(ack);
+        result.setIdempotent(idempotent);
         return new KafkaProducer<>(props);
     }
 
@@ -108,7 +116,7 @@ public class ProducerMenu {
         Properties props = new Properties();
         props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, "1000");
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        props.put(ProducerConfig.CLIENT_ID_CONFIG, "AnkushevAD");
+        props.put(ProducerConfig.CLIENT_ID_CONFIG, "AnkushevAD_results");
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         return new KafkaProducer<>(props);

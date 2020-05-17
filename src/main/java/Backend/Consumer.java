@@ -20,10 +20,10 @@ public class Consumer {
     private final static ClickHouseDao dao = new ClickHouseDao();
 
     public static void main(String[] args) {
-        KafkaConsumer<String, String> consumer = createConsumer();
+        KafkaConsumer<String, String> consumer = createConsumer("group");
         consumer.subscribe(Collections.singletonList("test"));
 
-        KafkaConsumer<String, String> resultConsumer = createConsumer();
+        KafkaConsumer<String, String> resultConsumer = createConsumer("group_results");
         resultConsumer.subscribe(Collections.singletonList("test_results"));
         try {
             while (true) {
@@ -36,6 +36,11 @@ public class Consumer {
                     System.out.println(String.format("Took %f to process %d records.", (System.currentTimeMillis() - start) / 1000F, records.count()));
                 }
                 ConsumerRecords<String, String> resultRecords = resultConsumer.poll(100);
+                if (!resultRecords.isEmpty()) {
+                    for (ConsumerRecord<String, String> record : resultRecords) {
+                        dao.insertRecord(ResultSerializer.deserialize(record.value()));
+                    }
+                }
             }
         } catch (SQLException throwables) {
             throwables.printStackTrace();
@@ -44,10 +49,10 @@ public class Consumer {
         }
     }
 
-    public static KafkaConsumer<String, String> createConsumer() {
+    public static KafkaConsumer<String, String> createConsumer(String consumerGroup) {
         Properties props = new Properties();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, "group");
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroup);
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         props.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, 1048576);
