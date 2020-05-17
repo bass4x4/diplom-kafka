@@ -22,6 +22,9 @@ public class Consumer {
     public static void main(String[] args) {
         KafkaConsumer<String, String> consumer = createConsumer();
         consumer.subscribe(Collections.singletonList("test"));
+
+        KafkaConsumer<String, String> resultConsumer = createConsumer();
+        resultConsumer.subscribe(Collections.singletonList("test_results"));
         try {
             while (true) {
                 ConsumerRecords<String, String> records = consumer.poll(100);
@@ -32,6 +35,7 @@ public class Consumer {
                     }
                     System.out.println(String.format("Took %f to process %d records.", (System.currentTimeMillis() - start) / 1000F, records.count()));
                 }
+                ConsumerRecords<String, String> resultRecords = resultConsumer.poll(100);
             }
         } catch (SQLException throwables) {
             throwables.printStackTrace();

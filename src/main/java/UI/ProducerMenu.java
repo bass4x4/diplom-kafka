@@ -1,11 +1,14 @@
 package UI;
 
+import Backend.Result;
+import Backend.ResultSerializer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.json.JSONObject;
 
 import javax.swing.*;
 import java.awt.*;
@@ -31,6 +34,8 @@ public class ProducerMenu {
     private JLabel compressionTypeLabel;
     private JLabel ackLabel;
 
+    private final Producer<String, String> resultsProducer;
+
     public ProducerMenu() {
         numberOfMessages.setModel(new SpinnerNumberModel(0, 0, 1000000, 1));
         lingerMsSpinner.setModel(new SpinnerNumberModel(0, 0, 500, 5));
@@ -43,7 +48,7 @@ public class ProducerMenu {
 
         String[] compressionTypes = {"none", "lz4", "snappy", "zstd", "gzip"};
         Arrays.stream(compressionTypes).forEach(compressionTypeComboBox::addItem);
-
+        resultsProducer = createResultsProducer();
         sendButton.addActionListener(actionEvent -> sendMessages(((int) numberOfMessages.getValue())));
     }
 
@@ -55,7 +60,7 @@ public class ProducerMenu {
             for (int i = 0; i < strings.size(); i++) {
                 try {
                     ProducerRecord<String, String> record = new ProducerRecord("test", String.valueOf(r.nextInt(1000)), strings.get(i));
-                    producer.send(record);
+                    producer.send(record).get();
                 } catch (Exception e) {
                     System.out.println(e);
                     JOptionPane.showMessageDialog(null, String.format("Couldn't send the message #%d. Didn't try to send %d messages.", i, numberOfMessages - i));
@@ -84,13 +89,28 @@ public class ProducerMenu {
         props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, compressionType);
         String ack = String.valueOf(ackComboBox.getSelectedItem());
         props.put(ProducerConfig.ACKS_CONFIG, acks.get(ack));
-        if (enableIdempotenceCheckBox.isSelected()) {
+        boolean idempotent = enableIdempotenceCheckBox.isSelected();
+        if (idempotent) {
             if (ack.equals("All")) {
-                props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, enableIdempotenceCheckBox.isSelected());
+                props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, idempotent);
             } else {
                 JOptionPane.showMessageDialog(null, "Please make sure you always use idempotent producer with ack=ALL.\nParameter ack was set to ALL!");
             }
         }
+
+        Result result = new Result(lingerMs, batchSize, compressionType, ack, idempotent);
+        ProducerRecord<String, String> record = new ProducerRecord("test_results", String.valueOf(r.nextInt(1000)), ResultSerializer.serialize(result));
+        resultsProducer.send(record);
+        return new KafkaProducer<>(props);
+    }
+
+    public Producer<String, String> createResultsProducer() {
+        Properties props = new Properties();
+        props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, "1000");
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        props.put(ProducerConfig.CLIENT_ID_CONFIG, "AnkushevAD");
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         return new KafkaProducer<>(props);
     }
 
