@@ -1,5 +1,6 @@
 package Backend;
 
+import Backend.POJO.ResultSerializer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -9,6 +10,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import javax.swing.*;
 import java.awt.*;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
 
@@ -35,7 +37,7 @@ public class Consumer {
                     }
                     System.out.println(String.format("Took %f to process %d records.", (System.currentTimeMillis() - start) / 1000F, records.count()));
                 }
-                ConsumerRecords<String, String> resultRecords = resultConsumer.poll(100);
+                ConsumerRecords<String, String> resultRecords = resultConsumer.poll(Duration.ofMillis(100));
                 if (!resultRecords.isEmpty()) {
                     for (ConsumerRecord<String, String> record : resultRecords) {
                         dao.insertRecord(ResultSerializer.deserialize(record.value()));

@@ -1,4 +1,4 @@
-package Backend;
+package Backend.POJO;
 
 public class Result {
 

@@ -1,5 +1,6 @@
-package Backend;
+package Backend.POJO;
 
+import Backend.POJO.Result;
 import org.json.JSONObject;
 
 public class ResultSerializer {

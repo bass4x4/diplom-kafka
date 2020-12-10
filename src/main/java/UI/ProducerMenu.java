@@ -1,19 +1,19 @@
 package UI;
 
-import Backend.Result;
-import Backend.ResultSerializer;
+import Backend.POJO.Result;
+import Backend.POJO.ResultSerializer;
+import com.google.common.collect.Sets;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.json.JSONObject;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.*;
 import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -33,6 +33,7 @@ public class ProducerMenu {
     private JLabel batchSizeLabel;
     private JLabel compressionTypeLabel;
     private JLabel ackLabel;
+    private final String[] compressionTypes = {"none", "lz4", "snappy", "zstd", "gzip"};
 
     private final Producer<String, String> resultsProducer;
 
@@ -46,10 +47,11 @@ public class ProducerMenu {
         acks.put("Leader", "1");
         acks.keySet().forEach(ackComboBox::addItem);
 
-        String[] compressionTypes = {"none", "lz4", "snappy", "zstd", "gzip"};
         Arrays.stream(compressionTypes).forEach(compressionTypeComboBox::addItem);
         resultsProducer = createResultsProducer();
-        sendButton.addActionListener(actionEvent -> sendMessages(((int) numberOfMessages.getValue())));
+
+//        sendButton.addActionListener(actionEvent -> sendMessages(((int) numberOfMessages.getValue())));
+        sendButton.addActionListener(actionEvent -> sendMessages());
     }
 
     private void sendMessages(int numberOfMessages) {
@@ -80,6 +82,47 @@ public class ProducerMenu {
         }
     }
 
+    private void sendMessages() {
+        try {
+            Result result = new Result();
+            int numberOfRecords = 500;
+            result.setNumberOfRecords(numberOfRecords);
+            HashSet<Integer> lingers = Sets.newHashSet(0, 5, 10, 50);
+            HashSet<Integer> batches = Sets.newHashSet(1, 2, 3);
+            HashSet<Boolean> idempotence = Sets.newHashSet(true, false);
+
+            lingers.forEach(linger ->
+                    batches.forEach(batch ->
+                            acks.keySet().forEach(ack ->
+                                    Sets.newHashSet("none", "snappy").forEach(compression ->
+                                            idempotence.forEach(idempotent -> {
+                                                Producer<String, String> producer = createProducer(result, linger, batch, compression, ack, idempotent);
+                                                List<String> strings = generateTestData(numberOfRecords);
+                                                long start = System.currentTimeMillis();
+                                                for (int i = 0; i < strings.size(); i++) {
+                                                    try {
+                                                        ProducerRecord<String, String> record = new ProducerRecord("test", String.valueOf(r.nextInt(1000)), strings.get(i));
+                                                        producer.send(record).get();
+                                                    } catch (Exception e) {
+                                                        System.out.println(e);
+                                                        JOptionPane.showMessageDialog(null, String.format("Couldn't send the message #%d. Didn't try to send %d messages.", i, numberOfRecords - i));
+                                                        return;
+                                                    }
+                                                }
+                                                float time = (System.currentTimeMillis() - start) / 1000F;
+                                                System.out.println(String.format("Took %f second to send %d messages", time, 1000));
+                                                result.setDuration(time);
+                                                ProducerRecord<String, String> record = new ProducerRecord("test_results", String.valueOf(r.nextInt(1000)), ResultSerializer.serialize(result));
+                                                resultsProducer.send(record);
+                                                producer.close();
+                                            })))));
+
+        } catch (KafkaException e) {
+            System.out.println(e);
+            JOptionPane.showMessageDialog(null, "Couldn't initialize KafkaProducer.");
+        }
+    }
+
     public Producer<String, String> createProducer(Result result) {
         Properties props = new Properties();
         props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, "1000");
@@ -89,8 +132,8 @@ public class ProducerMenu {
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         int lingerMs = (int) lingerMsSpinner.getValue();
         props.put(ProducerConfig.LINGER_MS_CONFIG, lingerMs);
-        int batchSize = (int) batchSizeSpinner.getValue();
-        props.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384 * batchSize);
+        int batchSize = (int) batchSizeSpinner.getValue() * 16384;
+        props.put(ProducerConfig.BATCH_SIZE_CONFIG, batchSize);
         String compressionType = String.valueOf(compressionTypeComboBox.getSelectedItem());
         props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, compressionType);
         String ack = String.valueOf(ackComboBox.getSelectedItem());
@@ -107,6 +150,33 @@ public class ProducerMenu {
         result.setLingerMs(lingerMs);
         result.setBatchSize(batchSize);
         result.setCompressionType(compressionType);
+        result.setAck(ack);
+        result.setIdempotent(idempotent);
+        return new KafkaProducer<>(props);
+    }
+
+    public Producer<String, String> createProducer(Result result, int linger, int batchsize, String compression, String ack, boolean idempotent) {
+        Properties props = new Properties();
+        props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, "1000");
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        props.put(ProducerConfig.CLIENT_ID_CONFIG, "AnkushevAD");
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        props.put(ProducerConfig.LINGER_MS_CONFIG, linger);
+        props.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384 * batchsize);
+        props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, compression);
+        props.put(ProducerConfig.ACKS_CONFIG, acks.get(ack));
+        if (idempotent) {
+            if (ack.equals("All")) {
+                props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, idempotent);
+            } else {
+//                JOptionPane.showMessageDialog(null, "Please make sure you always use idempotent producer with ack=ALL.\nParameter ack was set to ALL!");
+            }
+        }
+
+        result.setLingerMs(linger);
+        result.setBatchSize(16384 * batchsize);
+        result.setCompressionType(compression);
         result.setAck(ack);
         result.setIdempotent(idempotent);
         return new KafkaProducer<>(props);

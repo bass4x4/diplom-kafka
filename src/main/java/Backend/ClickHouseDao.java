@@ -1,5 +1,7 @@
 package Backend;
 
+import Backend.POJO.Result;
+
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -33,7 +35,7 @@ public class ClickHouseDao {
         try (PreparedStatement statement = connection.prepareStatement(INSERT_QUERY)) {
             statement.setString(1, getCurrentDateTime());
             statement.setString(2, message);
-            statement.executeQuery();
+//            statement.executeQuery();
         }
     }
 
